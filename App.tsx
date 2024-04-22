@@ -3,116 +3,183 @@
  * https://github.com/facebook/react-native
  *
  * @format
+ * @flow strict-local
  */
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
+  Button,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
-  useColorScheme,
+  TextInput,
   View,
 } from 'react-native';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+import SimCardsManagerModule from 'react-native-sim-cards-manager';
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+interface ILog {
+  command: string;
+  result: any;
 }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+export default function App() {
+  const [logs, setLogs] = useState<Array<ILog>>([]);
+  const [confirmationCode, setConfirmationCode] = useState('');
+  const scrollViewRef = useRef<any>();
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  useEffect(() => {}, []);
+
+  const getSimCards = () => {
+    SimCardsManagerModule.getSimCards()
+      .then((array: Array<any>) => {
+        setLogs([
+          ...logs,
+          {
+            command: 'getSimCards',
+            result: JSON.stringify(array, null, 5),
+          },
+        ]);
+      })
+      .catch((error: any) => {
+        setLogs([
+          ...logs,
+          {
+            command: 'getSimCardsError',
+            result: JSON.stringify(error, null, 5),
+          },
+        ]);
+      });
+  };
+
+  const isEsimSupported = () => {
+    SimCardsManagerModule.isEsimSupported()
+      .then((isSupported: boolean) => {
+        setLogs([
+          ...logs,
+          {
+            command: 'isEsimSupported',
+            result: JSON.stringify(isSupported, null, 5),
+          },
+        ]);
+      })
+      .catch((error: any) => {
+        setLogs([
+          ...logs,
+          {
+            command: 'isEsimSupportedError',
+            result: JSON.stringify(error, null, 5),
+          },
+        ]);
+      });
+  };
+
+  const setupEsim = () => {
+    SimCardsManagerModule.setupEsim({
+      confirmationCode,
+      address: '',
+    })
+      .then((isPlanAdded: boolean) => {
+        setLogs([
+          ...logs,
+          {
+            command: 'setupEsim',
+            result: JSON.stringify(isPlanAdded, null, 5),
+          },
+        ]);
+      })
+      .catch((error: any) => {
+        setLogs([
+          ...logs,
+          {
+            command: 'setupEsimError',
+            result: JSON.stringify(error, null, 5),
+          },
+        ]);
+      });
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
+    <SafeAreaView>
+      <View style={styles.mainView}>
+        <View style={styles.header}>
+          <Text style={styles.headerText}>RN Sim Cards Manager</Text>
         </View>
-      </ScrollView>
+        <ScrollView
+          style={styles.logsContainer}
+          contentContainerStyle={{paddingHorizontal: 4}}
+          ref={scrollViewRef}
+          onContentSizeChange={() =>
+            scrollViewRef?.current?.scrollToEnd({animated: true})
+          }>
+          {logs.map((log, index) => (
+            <View key={index}>
+              <Text style={styles.logText}>{log.command} :</Text>
+              <Text style={styles.logTextResult} key={`result-${index}`}>
+                {`${log.result}`}
+              </Text>
+            </View>
+          ))}
+        </ScrollView>
+        <View style={styles.button}>
+          <Button title={'Get sim cards'} onPress={getSimCards}></Button>
+        </View>
+        <View style={styles.button}>
+          <Button
+            title={'Is Esim supported?'}
+            onPress={isEsimSupported}></Button>
+        </View>
+        <View style={styles.activateEsimContainer}>
+          <TextInput
+            style={styles.textInput}
+            onChangeText={setConfirmationCode}></TextInput>
+          <View style={styles.button}>
+            <Button title={'Activate Esim'} onPress={setupEsim}></Button>
+          </View>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  header: {
+    paddingVertical: 20,
+    alignItems: 'center',
   },
-  sectionTitle: {
+  headerText: {
     fontSize: 24,
     fontWeight: '600',
   },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
+  button: {
+    paddingVertical: 10,
   },
-  highlight: {
-    fontWeight: '700',
+  activateEsimContainer: {
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  mainView: {
+    paddingHorizontal: 18,
+  },
+  textInput: {
+    marginRight: 18,
+    backgroundColor: 'lightgrey',
+    flex: 1,
+  },
+  logsContainer: {
+    height: 300,
+    backgroundColor: 'black',
+    borderRadius: 5,
+  },
+  logText: {
+    color: 'lightgrey',
+  },
+  logTextResult: {
+    color: 'lightgrey',
+    marginLeft: 20,
+    marginBottom: 5,
   },
 });
-
-export default App;
